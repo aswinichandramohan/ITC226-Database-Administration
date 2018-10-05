@@ -1,0 +1,112 @@
+Table Partitions: (MetroAlt)
+
+-- Creating a database called BusScheduleDate
+Use Master
+Go
+Create database BusScheduleDate
+Go
+
+Use BusScheduleDate
+Go 
+--Alter the database to add 5 filegroups
+Alter Database BusScheduleDate
+Add FileGroup FG1
+Alter Database BusScheduleDate
+Add FileGroup FG2
+Alter Database BusScheduleDate
+Add FileGroup FG3
+Alter Database BusScheduleDate
+Add FileGroup FG4
+Alter Database BusScheduleDate
+Add FileGroup FG5
+Go
+
+--Adding files to those file groups
+Alter Database BusScheduleDate
+Add File
+(Name=FG1_dat, Filename='C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\DATA\BusScheduleDate_1.ndf', size=2mb)
+To FIleGroup FG1
+
+Alter Database BusScheduleDate
+Add File
+(Name=FG2_dat, Filename='C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\DATA\BusScheduleDate_2.ndf', size=2mb)
+To FIleGroup FG2
+
+Alter Database BusScheduleDate
+Add File
+(Name=FG3_dat, Filename='C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\DATA\BusScheduleDate_3.ndf', size=2mb)
+To FIleGroup FG3
+
+Alter Database BusScheduleDate
+Add File
+(Name=FG4_dat, Filename='C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\DATA\BusScheduleDate_4.ndf', size=2mb)
+To FIleGroup FG4
+
+Alter Database BusScheduleDate
+Add File
+(Name=FG5_dat, Filename='C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\DATA\BusScheduleDate_5.ndf', size=2mb)
+To FIleGroup FG5
+Go
+
+-- Creating partition function 
+Create Partition Function fx_BusScheduleDate (int)
+As
+Range Right
+For Values ('2012', '2013', '2014', '2015')
+Go
+
+
+--Create the partition schema
+Create Partition scheme sch_BusScheduleDate 
+As Partition fx_BusScheduleDate
+To (FG1, FG2, FG3, FG4, FG5)
+Go
+
+
+--Create the table(PartitionBusScheduleDate) that has the same structure as BusscheduleAssignmentDate from MetroAlt. Uses the partition schema
+Create table PartitionBusScheduleDate
+(
+BusScheduleAssignmentKey int not null, 
+BusDriverShiftKey int null, 
+EmployeeKey int null, 
+BusRouteKey int null, 
+BusScheduleAssignmentDate int not null, 
+BusKey int null
+)
+on sch_BusScheduleDate (BusScheduleAssignmentDate)
+Go
+
+Truncate table PartitionBusScheduleDate
+Go
+
+Create Clustered index ix_BusSchedule on PartitionBusScheduleDate(BusScheduleAssignmentDate)
+Go
+
+
+Alter table PartitionBusScheduleDate
+Add Constraint px_PartitionBusScheduleDate
+Primary Key(BusScheduleAssignmentKey, BusScheduleAssignmentDate)
+Go
+
+Insert into PartitionBusScheduleDate
+(
+BusScheduleAssignmentKey, 
+BusDriverShiftKey, 
+EmployeeKey, 
+BusRouteKey, 
+BusScheduleAssignmentDate, 
+BusKey
+)
+Select BusScheduleAssignmentKey, 
+BusDriverShiftKey, 
+EmployeeKey, 
+BusRouteKey, 
+Year(BusScheduleAssignmentDate), 
+BusKey From MetroAlt.dbo.BusScheduleAssignment
+Go
+
+--Created a query that only queries the 2013 partition
+Select * from PartitionBusScheduleDate
+Where $Partition.fx_BusScheduleDate(BusScheduleAssignmentDate) = 3
+Go
+
